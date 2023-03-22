@@ -1,32 +1,64 @@
 {
-  "name": "master-electron",
+  "name": "test-auto-update",
   "version": "1.0.0",
-  "description": "Master Electron Course Code",
+  "author": "Mamane",
+  "description": "Electron Course Code ",
   "main": "main.js",
-  "repository": { 
-  "type" : "git", 
-  "url" : "https://github.com/unitraf/electron.git" 
-},
+  "private":true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/unitraf/test.git"
+  },
+  "publish": {
+    "provider": "github",
+    "releaseType": "release"
+  },
   "scripts": {
     "start": "electron .",
     "watch": "nodemon --exec electron .",
     "reset": "git reset --hard",
-    "build": "electron-builder build --mac --win --publish never",
-"deploy": "electron-builder build --mac --win --publish always"
+    "build": "electron-builder build --win --publish never",
+    "deploy": "electron-builder build -w -p onTagOrDraft"
+  },
+  "build": {
+    "appId": "com.test.electron",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "publish": [
+        "github"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "publish": [
+        "github"
+      ],
+      "verifyUpdateCodeSignature": false,
+      "publisherName": "Test"
+    },
+    "linux": {
+      "publish": [
+        "github"
+      ],
+      "category": "Network"
+    }
   },
   "keywords": [
     "Electron",
     "Master Electron",
     "demo"
   ],
-  "author": "GitHub, Stackacademytv",
-  "license": "CC0-1.0",
+
   "devDependencies": {
     "electron": "^5.0.0",
+    "electron-builder": "^23.6.0",
     "nodemon": "^1.18.9"
   },
   "dependencies": {
     "electron-updater": "^5.3.0",
-    "electron-window-state": "^5.0.3"
+    "electron-window-state": "^5.0.3",
+    "update-electron-app": "^2.0.1"
   }
 }
