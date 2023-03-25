@@ -1,54 +1,43 @@
-const { app, BrowserWindow} = require('electron');
 
-const checkForUpdates = require("./updater")
-// const { autoUpdater, AppUpdater } = require('electron-updater');
+// Modules
+const {app, ipcMain} = require('electron')
+const mainWindow = require('./mainWindow')
+const readItem = require('./readItem')
+const updater = require('./updater')
 
-// autoUpdater.autoDownload=false
-// autoUpdater.autoInstallOnAppQuit=true
+// LIsten for new read item
+ipcMain.on('new-item', (e, itemURL) => {
 
-let mainWindow;
-const path = require("path");
-function createWindow () {
-  mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      nodeIntegration: true,
-      preload:path.join(__dirname,"src","index.js")
-    },
-  });
-  mainWindow.loadURL( `file://${path.join(__dirname,"src", "index.html")}`)
-  mainWindow.on('closed', function () {
-    mainWindow = null;
-  });
- 
-  mainWindow.openDevTools();
-}
-// mainWindow.once('ready-to-show', () => {
-// 	autoUpdater.checkForUpdatesAndNotify();
-//   });
+    // Get read item with readItem module
+    readItem( itemURL, (item) => {
 
+      // Send to renderer
+      e.sender.send('new-item-success', item)
+    })
+})
+
+
+// This method will be called when Electron has finished
+// initialization and is ready to create browser windows.
+// Some APIs can only be used after this event occurs.
 app.on('ready', () => {
-  createWindow();
-  
-checkForUpdates
-});
 
-app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+  // Create main window
+  mainWindow.createWindow()
 
-app.on('activate', function () {
-  if (mainWindow === null) {
-    createWindow();
-  }
-});
+  // Check for update after x seconds
+  setTimeout( updater.check, 2000)
+})
 
-function showMessage (message){
-  console.log('====================================');
-  console.log(message);
-  console.log('====================================');
-  mainWindow.send("updateMessage", message)
-}
+// Quit when all windows are closed.
+app.on('window-all-closed', () => {
+  // On OS X it is common for applications and their menu bar
+  // to stay active until the user quits explicitly with Cmd + Q
+  if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('activate', () => {
+  // On OS X it's common to re-create a window in the app when the
+  // dock icon is clicked and there are no other windows open.
+  if (mainWindow === null) mainWindow.createWindow()
+})

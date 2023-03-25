@@ -1,61 +1,88 @@
-/**
- * updater.js
- *
- * Please use manual update only when it is really required, otherwise please use recommended non-intrusive auto update.
- *
- * Import steps:
- * 1. create `updater.js` for the code snippet
- * 2. require `updater.js` for menu implementation, and set `checkForUpdates` callback from `updater` for the click property of `Check Updates...` MenuItem.
- */
-const { dialog } = require('electron')
-const { autoUpdater } = require('electron-updater')
+// Modules
+const {dialog, BrowserWindow, ipcMain} = require('electron')
+const {autoUpdater} = require('electron-updater')
 
-let updater
+// // Enable logging
+// autoUpdater.logger = require('electron-log')
+// autoUpdater.logger.transports.file.level = 'info'
+
+// Disable auto downloading
 autoUpdater.autoDownload = false
 
-autoUpdater.on('error', (error) => {
-  dialog.showErrorBox('Error: ', error == null ? "unknown" : (error.stack || error).toString())
-})
+// Check for updates
+exports.check = () => {
 
-autoUpdater.on('update-available', () => {
-  dialog.showMessageBox({
-    type: 'info',
-    title: 'Found Updates',
-    message: 'Found updates, do you want update now?',
-    buttons: ['Sure', 'No']
-  }).then((buttonIndex) => {
-    if (buttonIndex === 0) {
-      autoUpdater.downloadUpdate()
-    }
-    else {
-      updater.enabled = true
-      updater = null
-    }
-  })
-})
-
-autoUpdater.on('update-not-available', () => {
-  dialog.showMessageBox({
-    title: 'No Updates',
-    message: 'Current version is up-to-date.'
-  })
-  updater.enabled = true
-  updater = null
-})
-
-autoUpdater.on('update-downloaded', () => {
-  dialog.showMessageBox({
-    title: 'Install Updates',
-    message: 'Updates downloaded, application will be quit for update...'
-  }).then(() => {
-    setImmediate(() => autoUpdater.quitAndInstall())
-  })
-})
-
-// export this to MenuItem click callback
-function checkForUpdates (menuItem, focusedWindow, event) {
-  updater = menuItem
-  updater.enabled = false
+  // Start update check
   autoUpdater.checkForUpdates()
+
+  // Listen for download (update) found
+  autoUpdater.on('update-available', () => {
+
+    // Track progress percent
+    let downloadProgress = 0
+
+    // Prompt user to update
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Available',
+      message: 'A new version of Readit is available. Do you want to update now?',
+      buttons: ['Update', 'No']
+    }, (buttonIndex) => {
+
+      // If not 'Update' button, return
+      if(buttonIndex !== 0) return
+
+      // Else start download and show download progress in new window
+      autoUpdater.downloadUpdate()
+
+      // Create progress window
+      let progressWin = new BrowserWindow({
+        width: 350,
+        height: 35,
+        useContentSize: true,
+        autoHideMenuBar: true,
+        maximizable: false,
+        fullscreen: false,
+        fullscreenable: false,
+        resizable: false
+      })
+
+      // Load progress HTML
+      progressWin.loadURL(`file://${__dirname}/renderer/progress.html`)
+
+      // Handle win close
+      progressWin.on('closed', () => {
+        progressWin = null
+      })
+
+      // Listen for preogress request from progressWin
+      ipcMain.on('download-progress-request', (e) => {
+        e.returnValue = downloadProgress
+      })
+
+      // Track download progress on autoUpdater
+      autoUpdater.on('download-progress', (d) => {
+        downloadProgress = d.percent
+      })
+
+      // Listen for completed update download
+      autoUpdater.on('update-downloaded', () => {
+
+        // Close progressWin
+        if(progressWin) progressWin.close()
+
+        // Prompt user to quit and install update
+        dialog.showMessageBox({
+          type: 'info',
+          title: 'Update Ready',
+          message: 'A new version of Readit is ready. Quit and install now?',
+          buttons: ['Yes', 'Later']
+        }, (buttonIndex) => {
+
+          // Update if 'Yes'
+          if(buttonIndex === 0) autoUpdater.quitAndInstall()
+        })
+      })
+    })
+  })
 }
-module.exports.checkForUpdates = checkForUpdates
